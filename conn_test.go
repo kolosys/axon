@@ -258,6 +258,223 @@ func TestConnReadTimeout(t *testing.T) {
 	}
 }
 
+// readServerFrame reads an unmasked WebSocket frame sent by server
+func readServerFrame(r io.Reader) (opcode byte, payload []byte, err error) {
+	buf := make([]byte, 14)
+
+	// Read first 2 bytes
+	if _, err := io.ReadFull(r, buf[:2]); err != nil {
+		return 0, nil, err
+	}
+
+	opcode = buf[0] & 0x0F
+	payloadLen := int(buf[1] & 0x7F)
+
+	switch payloadLen {
+	case 126:
+		if _, err := io.ReadFull(r, buf[2:4]); err != nil {
+			return 0, nil, err
+		}
+		payloadLen = int(binary.BigEndian.Uint16(buf[2:4]))
+	case 127:
+		if _, err := io.ReadFull(r, buf[2:10]); err != nil {
+			return 0, nil, err
+		}
+		payloadLen = int(binary.BigEndian.Uint64(buf[2:10]))
+	}
+
+	payload = make([]byte, payloadLen)
+	if payloadLen > 0 {
+		if _, err := io.ReadFull(r, payload); err != nil {
+			return 0, nil, err
+		}
+	}
+
+	return opcode, payload, nil
+}
+
+func TestConnWriteTextMessage(t *testing.T) {
+	conn, clientConn, err := axon.NewTestConn[string](nil)
+	if err != nil {
+		t.Fatalf("failed to create test connection: %v", err)
+	}
+	defer conn.Close(1000, "")
+	defer clientConn.Close()
+
+	// Read from client side in background
+	received := make(chan string, 1)
+	go func() {
+		opcode, payload, err := readServerFrame(clientConn)
+		if err != nil {
+			return
+		}
+		if opcode == 0x1 { // opText
+			var msg string
+			json.Unmarshal(payload, &msg)
+			received <- msg
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if err := conn.Write(ctx, "hello world"); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case msg := <-received:
+		if msg != "hello world" {
+			t.Errorf("expected 'hello world', got %q", msg)
+		}
+	case <-time.After(time.Second):
+		t.Error("timeout waiting for message")
+	}
+}
+
+func TestConnWriteJSONMessage(t *testing.T) {
+	type Message struct {
+		Type string `json:"type"`
+		Data int    `json:"data"`
+	}
+
+	conn, clientConn, err := axon.NewTestConn[Message](nil)
+	if err != nil {
+		t.Fatalf("failed to create test connection: %v", err)
+	}
+	defer conn.Close(1000, "")
+	defer clientConn.Close()
+
+	received := make(chan Message, 1)
+	go func() {
+		_, payload, err := readServerFrame(clientConn)
+		if err != nil {
+			return
+		}
+		var msg Message
+		if json.Unmarshal(payload, &msg) == nil {
+			received <- msg
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if err := conn.Write(ctx, Message{Type: "test", Data: 42}); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case msg := <-received:
+		if msg.Type != "test" || msg.Data != 42 {
+			t.Errorf("expected {test, 42}, got %+v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Error("timeout waiting for message")
+	}
+}
+
+func TestConnWriteBinaryMessage(t *testing.T) {
+	conn, clientConn, err := axon.NewTestConn[[]byte](nil)
+	if err != nil {
+		t.Fatalf("failed to create test connection: %v", err)
+	}
+	defer conn.Close(1000, "")
+	defer clientConn.Close()
+
+	received := make(chan []byte, 1)
+	go func() {
+		opcode, payload, err := readServerFrame(clientConn)
+		if err != nil {
+			return
+		}
+		if opcode == 0x2 { // opBinary
+			received <- payload
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	data := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
+	if err := conn.Write(ctx, data); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case got := <-received:
+		// Binary data is JSON encoded, so unmarshal it
+		var decoded []byte
+		if err := json.Unmarshal(got, &decoded); err != nil {
+			t.Fatalf("failed to decode: %v", err)
+		}
+		if len(decoded) != len(data) {
+			t.Errorf("expected %d bytes, got %d", len(data), len(decoded))
+		}
+	case <-time.After(time.Second):
+		t.Error("timeout waiting for message")
+	}
+}
+
+func TestConnWriteConnectionClosed(t *testing.T) {
+	conn, clientConn, err := axon.NewTestConn[string](nil)
+	if err != nil {
+		t.Fatalf("failed to create test connection: %v", err)
+	}
+	defer clientConn.Close()
+
+	conn.Close(1000, "")
+
+	err = conn.Write(context.Background(), "test")
+	if err != axon.ErrConnectionClosed {
+		t.Errorf("expected ErrConnectionClosed, got %v", err)
+	}
+}
+
+func TestConnWriteMultipleMessages(t *testing.T) {
+	conn, clientConn, err := axon.NewTestConn[string](nil)
+	if err != nil {
+		t.Fatalf("failed to create test connection: %v", err)
+	}
+	defer conn.Close(1000, "")
+	defer clientConn.Close()
+
+	messages := []string{"one", "two", "three"}
+	received := make(chan string, len(messages))
+
+	go func() {
+		for i := 0; i < len(messages); i++ {
+			_, payload, err := readServerFrame(clientConn)
+			if err != nil {
+				return
+			}
+			var msg string
+			json.Unmarshal(payload, &msg)
+			received <- msg
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	for _, msg := range messages {
+		if err := conn.Write(ctx, msg); err != nil {
+			t.Fatalf("write failed: %v", err)
+		}
+	}
+
+	for i, expected := range messages {
+		select {
+		case got := <-received:
+			if got != expected {
+				t.Errorf("message %d: expected %q, got %q", i, expected, got)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("timeout waiting for message %d", i)
+		}
+	}
+}
+
 func TestConnClose(t *testing.T) {
 	conn, clientConn, err := axon.NewTestConn[string](nil)
 	if err != nil {
