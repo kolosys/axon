@@ -54,4 +54,28 @@ var (
 
 	// ErrDeserializationFailed indicates message deserialization failed
 	ErrDeserializationFailed = errors.New("axon: deserialization failed")
+
+	// ErrReconnectFailed indicates reconnection attempts have been exhausted
+	ErrReconnectFailed = errors.New("axon: reconnection failed")
+
+	// ErrQueueFull indicates the message queue is full
+	ErrQueueFull = errors.New("axon: message queue full")
+
+	// ErrQueueClosed indicates the message queue has been closed
+	ErrQueueClosed = errors.New("axon: message queue closed")
+
+	// ErrQueueTimeout indicates a queued message has expired
+	ErrQueueTimeout = errors.New("axon: queued message timeout")
+
+	// ErrQueueCleared indicates the queue was cleared before message was sent
+	ErrQueueCleared = errors.New("axon: message queue cleared")
+
+	// ErrCompressionFailed indicates compression or decompression failed
+	ErrCompressionFailed = errors.New("axon: compression failed")
+
+	// ErrInvalidState indicates an invalid state transition was attempted
+	ErrInvalidState = errors.New("axon: invalid state transition")
+
+	// ErrClientClosed indicates the client has been closed
+	ErrClientClosed = errors.New("axon: client closed")
 )

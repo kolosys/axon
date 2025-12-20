@@ -3,8 +3,10 @@ package axon
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -31,6 +33,9 @@ type Conn[T any] struct {
 	pingTicker    *time.Ticker
 	pingStop      chan struct{}
 	pingWg        sync.WaitGroup
+	isClient      bool
+	compression   *CompressionManager
+	writeMu       sync.Mutex
 }
 
 // Read reads a complete message from the connection
@@ -133,6 +138,15 @@ func (c *Conn[T]) Read(ctx context.Context) (T, error) {
 		return zero, nil
 	}
 
+	// Decompress if compression is enabled and message was compressed
+	if c.compression != nil && c.compression.enabled {
+		decompressed, err := c.compression.Decompress(messagePayload)
+		if err != nil {
+			return zero, err
+		}
+		messagePayload = decompressed
+	}
+
 	if err := json.Unmarshal(messagePayload, &msg); err != nil {
 		switch v := any(&msg).(type) {
 		case *[]byte:
@@ -146,6 +160,21 @@ func (c *Conn[T]) Read(ctx context.Context) (T, error) {
 	}
 
 	return msg, nil
+}
+
+// IsClosed returns true if the connection has been closed
+func (c *Conn[T]) IsClosed() bool {
+	return atomic.LoadInt32(&c.closed) != 0
+}
+
+// CloseCode returns the close code if the connection was closed
+func (c *Conn[T]) CloseCode() int {
+	return c.closeCode
+}
+
+// CloseReason returns the close reason if the connection was closed
+func (c *Conn[T]) CloseReason() string {
+	return c.closeReason
 }
 
 // Write writes a message to the connection
@@ -167,6 +196,9 @@ func (c *Conn[T]) Write(ctx context.Context, msg T) error {
 			return ErrContextCanceled
 		}
 	}
+
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 
 	if err := c.conn.SetWriteDeadline(time.Now().Add(deadline)); err != nil {
 		return err
@@ -200,11 +232,35 @@ func (c *Conn[T]) Write(ctx context.Context, msg T) error {
 		opcode = opText // JSON is text frame
 	}
 
+	// Compress if compression is enabled and payload is large enough
+	compressed := false
+	if c.compression != nil && c.compression.ShouldCompress(len(payload)) {
+		compressedPayload, err := c.compression.Compress(payload)
+		if err == nil && len(compressedPayload) < len(payload) {
+			payload = compressedPayload
+			compressed = true
+		}
+	}
+
 	frame := &Frame{
 		Fin:     true,
+		Rsv1:    compressed, // RSV1 indicates compression
 		Opcode:  opcode,
-		Masked:  false, // Server never masks
+		Masked:  c.isClient, // Clients must mask frames
 		Payload: payload,
+	}
+
+	// Generate mask key for client connections
+	if c.isClient {
+		frame.MaskKey = make([]byte, 4)
+		if _, err := rand.Read(frame.MaskKey); err != nil {
+			return fmt.Errorf("axon: failed to generate mask key: %w", err)
+		}
+		// Mask the payload
+		maskedPayload := make([]byte, len(payload))
+		copy(maskedPayload, payload)
+		maskBytes(maskedPayload, frame.MaskKey)
+		frame.Payload = maskedPayload
 	}
 
 	if err := writeFrame(c.writer, c.writeBuf, frame); err != nil {
