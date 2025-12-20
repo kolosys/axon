@@ -1,0 +1,44 @@
+repository:
+    name: axon
+    owner: kolosys
+    description: '![GoVersion](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)'
+    import_path: github.com/kolosys/axon
+    branch: main
+    url: https://github.com/kolosys/axon
+output:
+    directory: /home/runner/work/axon/axon/docs
+    clean: true
+    preserve_custom: false
+discovery:
+    packages:
+        auto_discover: true
+        include_patterns:
+            - ./...
+        exclude_patterns:
+            - ./vendor/...
+            - ./test/...
+            - ./.git/...
+            - '**/*_test.go'
+        manual_packages: []
+    api_generation:
+        enabled: true
+        include_unexported: false
+        include_tests: false
+        include_examples: true
+    examples:
+        enabled: true
+        auto_discover: true
+        directories: []
+templates:
+    directory: ""
+    custom_templates: []
+metadata:
+    version: latest
+    go_version: ""
+    author: ""
+    license: MIT
+generation:
+    date_format: "2006-01-02"
+    include_generated_notice: true
+    include_toc: true
+    max_depth: 3
