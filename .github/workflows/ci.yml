@@ -1,0 +1,14 @@
+name: Continuous Integration
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: kolosys/.actions/.github/workflows/ci-workflow.yml@main
+    permissions: write-all
+    secrets:
+      app_id: ${{ vars.APP_ID }}
+      app_private_key: ${{ secrets.APP_PRIVATE_KEY }}

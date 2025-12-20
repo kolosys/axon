@@ -1,6 +1,12 @@
-# Axon
+# Axon 🔌
 
-A high-performance, zero-allocation WebSocket library for Go, designed for enterprise-grade applications with minimal dependencies.
+![GoVersion](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Zero Dependencies](https://img.shields.io/badge/Zero-Dependencies-green.svg)
+[![Go Reference](https://pkg.go.dev/badge/github.com/kolosys/axon.svg)](https://pkg.go.dev/github.com/kolosys/axon)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kolosys/axon)](https://goreportcard.com/report/github.com/kolosys/axon)
+
+A high-performance, zero-allocation WebSocket library for Go, designed for enterprise-grade applications with zero dependencies.
 
 ## Features
 
