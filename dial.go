@@ -192,7 +192,7 @@ func DialWithDialer[T any](ctx context.Context, d *Dialer, rawURL string) (*Conn
 	buf.WriteString(path)
 	buf.WriteString(" HTTP/1.1\r\n")
 	buf.WriteString("Host: ")
-	buf.WriteString(u.Host)
+	buf.WriteString(host)
 	buf.WriteString("\r\n")
 	buf.WriteString("Upgrade: websocket\r\n")
 	buf.WriteString("Connection: Upgrade\r\n")

@@ -92,7 +92,6 @@ func readFrameHeader(r io.Reader, buf []byte) (*Frame, error) {
 			return nil, err
 		}
 		frame.MaskKey = buf[headerSize : headerSize+4]
-		headerSize += 4
 	}
 
 	frame.Payload = make([]byte, payloadLen)

@@ -222,7 +222,7 @@ func (c *Conn[T]) Write(ctx context.Context, msg T) error {
 		return ErrMessageTooLarge
 	}
 
-	var opcode byte = opBinary
+	var opcode byte
 	switch any(msg).(type) {
 	case string:
 		opcode = opText
