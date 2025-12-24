@@ -210,8 +210,8 @@ func (c *Client[T]) readLoop() {
 		// Read message
 		msg, err := c.Read(c.ctx)
 		if err != nil {
-			// Handle disconnection
-			if err == ErrConnectionClosed || err == ErrContextCanceled {
+			// Handle disconnection - check for CloseError, ErrConnectionClosed, or context canceled
+			if IsCloseError(err) || err == ErrConnectionClosed || err == ErrContextCanceled {
 				c.handleDisconnect(err)
 				continue
 			}

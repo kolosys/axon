@@ -76,7 +76,6 @@ func newReconnector(config *ReconnectConfig) *reconnector {
 		config = DefaultReconnectConfig()
 	}
 
-	// Apply defaults
 	if config.InitialDelay <= 0 {
 		config.InitialDelay = time.Second
 	}
@@ -102,14 +101,16 @@ func (r *reconnector) shouldReconnect(err error) bool {
 		return false
 	}
 
-	// Check max attempts
 	if r.config.MaxAttempts > 0 && r.attempts >= r.config.MaxAttempts {
 		return false
 	}
 
-	// Call custom predicate if provided
 	if r.config.ShouldReconnect != nil {
 		return r.config.ShouldReconnect(err, r.attempts)
+	}
+
+	if closeErr := AsCloseError(err); closeErr != nil {
+		return closeErr.IsRecoverable()
 	}
 
 	return true
@@ -139,19 +140,16 @@ func (r *reconnector) attempt(ctx context.Context, dialFn func(context.Context) 
 	r.attempts++
 	delay := r.nextDelay()
 
-	// Call OnReconnecting callback
 	if r.config.OnReconnecting != nil {
 		r.config.OnReconnecting(r.attempts, delay)
 	}
 
-	// Wait for delay or context cancellation
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-time.After(delay):
 	}
 
-	// Attempt to connect
 	err := dialFn(ctx)
 	if err != nil {
 		if r.config.OnReconnectFailed != nil {
@@ -160,9 +158,8 @@ func (r *reconnector) attempt(ctx context.Context, dialFn func(context.Context) 
 		return err
 	}
 
-	// Success
 	if r.config.OnReconnected != nil {
-		r.config.OnReconnected(r.attempts)
+		r.config.OnReconnected(r.attempts) // Success
 	}
 
 	r.lastConnect = time.Now()
@@ -184,23 +181,19 @@ func (r *reconnector) maybeReset() {
 // reconnectLoop continuously attempts to reconnect until successful or cancelled
 func (r *reconnector) reconnectLoop(ctx context.Context, dialFn func(context.Context) error) error {
 	for {
-		// Check context
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
-		// Check if we should continue reconnecting
 		if !r.shouldReconnect(nil) {
 			return ErrReconnectFailed
 		}
 
-		// Attempt reconnection
 		err := r.attempt(ctx, dialFn)
 		if err == nil {
 			return nil // Success
 		}
 
-		// Check if we should retry
 		if !r.shouldReconnect(err) {
 			return ErrReconnectFailed
 		}

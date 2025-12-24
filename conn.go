@@ -95,7 +95,7 @@ func (c *Conn[T]) Read(ctx context.Context) (T, error) {
 				c.closeCode = code
 				c.closeReason = reason
 			})
-			return zero, ErrConnectionClosed
+			return zero, NewCloseError(code, reason)
 
 		case opPing:
 			pongFrame := &Frame{

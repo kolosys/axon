@@ -171,8 +171,11 @@ func TestConnReadCloseFrame(t *testing.T) {
 	defer cancel()
 
 	_, err = conn.Read(ctx)
-	if err != axon.ErrConnectionClosed {
-		t.Errorf("expected ErrConnectionClosed after close frame, got %v", err)
+	closeErr := axon.AsCloseError(err)
+	if closeErr == nil {
+		t.Errorf("expected CloseError after close frame, got %v", err)
+	} else if closeErr.Code != axon.CloseNormalClosure {
+		t.Errorf("expected CloseNormalClosure (1000), got %d", closeErr.Code)
 	}
 }
 
