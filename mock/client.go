@@ -16,8 +16,8 @@ type errorHolder struct {
 
 // MockClient provides an in-memory mock of axon.Client[T] for testing
 type MockClient[T any] struct {
-	state      atomic.Int32
-	sessionID  atomic.Value
+	state     atomic.Int32
+	sessionID atomic.Value
 
 	readCh  chan T
 	writeCh chan T
@@ -27,10 +27,10 @@ type MockClient[T any] struct {
 	onMessage     func(T)
 	onStateChange func(axon.StateChange)
 
-	mu             sync.RWMutex
-	writtenMsgs    []T
-	receivedMsgs   []T
-	stateChanges   []axon.StateChange
+	mu           sync.RWMutex
+	writtenMsgs  []T
+	receivedMsgs []T
+	stateChanges []axon.StateChange
 
 	connectErr atomic.Value
 	readErr    atomic.Value

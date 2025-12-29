@@ -235,5 +235,4 @@
 //	if err != axon.ErrConnectionClosed {
 //	    t.Fatalf("unexpected error: %v", err)
 //	}
-//
 package mock
