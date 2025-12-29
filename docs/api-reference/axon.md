@@ -234,7 +234,7 @@ func (**ast.IndexExpr) OnMessage(fn func(T))
 OnStateChange registers a callback for state change events
 
 ```go
-func (**ast.IndexExpr) OnStateChange(handler StateHandler)
+func (*stateManager) OnStateChange(handler StateHandler)
 ```
 
 **Parameters:**
@@ -277,7 +277,7 @@ func (**ast.IndexExpr) Read(ctx context.Context) (T, error)
 SessionID returns the current session identifier
 
 ```go
-func (**ast.IndexExpr) SessionID() string
+func (*stateManager) SessionID() string
 ```
 
 **Parameters:**
@@ -291,7 +291,7 @@ func (**ast.IndexExpr) SessionID() string
 SetSessionID sets the session identifier for reconnection
 
 ```go
-func (**ast.IndexExpr) SetSessionID(id string)
+func (*stateManager) SetSessionID(id string)
 ```
 
 **Parameters:**
@@ -305,7 +305,7 @@ func (**ast.IndexExpr) SetSessionID(id string)
 State returns the current connection state
 
 ```go
-func (**ast.IndexExpr) State() ConnectionState
+func (*stateManager) State() ConnectionState
 ```
 
 **Parameters:**
@@ -384,6 +384,171 @@ func DefaultClientOptions() *ClientOptions
 
 **Returns:**
 - *ClientOptions
+
+### CloseCode
+CloseCode represents a WebSocket close status code (RFC 6455 Section 7.4).
+
+#### Example Usage
+
+```go
+// Example usage of CloseCode
+var value CloseCode
+// Initialize with appropriate value
+```
+
+#### Type Definition
+
+```go
+type CloseCode int
+```
+
+## Methods
+
+### IsRecoverable
+
+IsRecoverable returns true if reconnection should typically be attempted. This is a hint - applications may have their own logic for specific codes.
+
+```go
+func (*CloseError) IsRecoverable() bool
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- bool
+
+### IsReserved
+
+IsReserved returns true if this is a reserved close code that must not be sent in close frames.
+
+```go
+func (CloseCode) IsReserved() bool
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- bool
+
+### IsValid
+
+IsValid returns true if this is a valid close code that can be sent in close frames.
+
+```go
+func (CloseCode) IsValid() bool
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- bool
+
+### String
+
+String returns a human-readable name for the close code.
+
+```go
+func (CloseCode) String() string
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- string
+
+### CloseError
+CloseError represents a WebSocket close event with code and reason. It implements the error interface for use in error handling.
+
+#### Example Usage
+
+```go
+// Create a new CloseError
+closeerror := CloseError{
+    Code: CloseCode{},
+    Reason: "example",
+}
+```
+
+#### Type Definition
+
+```go
+type CloseError struct {
+    Code CloseCode
+    Reason string
+}
+```
+
+### Fields
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| Code | `CloseCode` |  |
+| Reason | `string` |  |
+
+### Constructor Functions
+
+### AsCloseError
+
+AsCloseError attempts to extract a CloseError from an error. Returns nil if the error is not a CloseError.
+
+```go
+func AsCloseError(err error) *CloseError
+```
+
+**Parameters:**
+- `err` (error)
+
+**Returns:**
+- *CloseError
+
+### NewCloseError
+
+NewCloseError creates a new CloseError with the given code and reason.
+
+```go
+func NewCloseError(code int, reason string) *CloseError
+```
+
+**Parameters:**
+- `code` (int)
+- `reason` (string)
+
+**Returns:**
+- *CloseError
+
+## Methods
+
+### Error
+
+Error implements the error interface.
+
+```go
+func (*CloseError) Error() string
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- string
+
+### IsRecoverable
+
+IsRecoverable returns true if reconnection should typically be attempted.
+
+```go
+func (*CloseError) IsRecoverable() bool
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- bool
 
 ### CompressionManager
 CompressionManager handles per-message compression (RFC 7692)
@@ -543,14 +708,14 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts *UpgradeOptions) (**as
 Close closes the connection with the given code and reason
 
 ```go
-func (**ast.IndexExpr) Close() error
+func (**ast.IndexExpr) Close()
 ```
 
 **Parameters:**
   None
 
 **Returns:**
-- error
+  None
 
 ### CloseCode
 
@@ -1621,6 +1786,32 @@ func NewUpgrader(opts *UpgradeOptions) *Upgrader
 
 **Returns:**
 - *Upgrader
+
+## Functions
+
+### IsCloseError
+IsCloseError returns true if the error is a CloseError.
+
+```go
+func IsCloseError(err error) bool
+```
+
+**Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `err` | `error` | |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| `bool` | |
+
+**Example:**
+
+```go
+// Example usage of IsCloseError
+result := IsCloseError(/* parameters */)
+```
 
 ## External Links
 
