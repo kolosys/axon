@@ -159,4 +159,3 @@ func AsCloseError(err error) *CloseError {
 func IsCloseError(err error) bool {
 	return AsCloseError(err) != nil
 }
-

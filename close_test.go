@@ -184,4 +184,3 @@ func TestIsCloseError(t *testing.T) {
 		t.Error("IsCloseError() = true for non-CloseError")
 	}
 }
-
